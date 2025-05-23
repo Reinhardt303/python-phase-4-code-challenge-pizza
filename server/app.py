@@ -19,6 +19,49 @@ db.init_app(app)
 
 api = Api(app)
 
+class Restaurants(Resource):
+    def get(self):
+        restaurants = [r.to_dict(rules=("-restaurant_pizzas",)) for r in Restaurant.query.all()]
+        return make_response(restaurants, 200)
+    
+class RestaurantsById(Resource):
+    def get(self, id):
+        try:
+            res = Restaurant.query.filter(Restaurant.id == id).first()
+            if not res:
+                return make_response({"error": "Restaurant not found"}, 404)
+            return make_response(res.to_dict(), 200)
+        except Exception as e:
+            return make_response({"error": str(e)}, 500)
+        
+    def delete(self, id):
+        res = Restaurant.query.filter(Restaurant.id == id).first()
+        if not res:
+            return make_response({"error": "Restaurant not found"}, 404) 
+        db.session.delete(res)
+        db.session.commit()
+        return make_response({}, 204)
+    
+class Pizzas(Resource):
+    def get(self):
+        pizzas = [p.to_dict(rules=('-restaurant_pizzas',)) for p in Pizza.query.all()]
+        return make_response(pizzas, 200)
+    
+class RestaurantPizzas(Resource):
+    def post(self):
+        req_data = request.get_json()
+        try:
+            restaurant_pizza = RestaurantPizza(**req_data)
+            db.session.add(restaurant_pizza)
+            db.session.commit()
+            return make_response(restaurant_pizza.to_dict(), 201)
+        except ValueError:
+            return make_response({"errors": ['validation errors']}, 400)
+
+api.add_resource(RestaurantPizzas, '/restaurant_pizzas')        
+api.add_resource(Restaurants, '/restaurants')
+api.add_resource(RestaurantsById, '/restaurants/<int:id>')
+api.add_resource(Pizzas, '/pizzas')
 
 @app.route("/")
 def index():
